@@ -16,60 +16,27 @@
  *   4. Add the .c to `sources` in application.fam.
  */
 
-#include <lib/subghz/registry.h>
-#include <lib/subghz/subghz_protocol_registry.h>
-
-#include "raw.h"
-#include "bin_raw.h"
-
-#include "vag.h"
-#include "ford_v0.h"
-#include "ford_v1.h"
-#include "ford_v2.h"
-#include "ford_v3.h"
-#include "psa.h"
-#include "fiat_v0.h"
-#include "fiat_v1.h"
-#include "fiat_v2.h"
-#include "renault_v0.h"
-#include "renault_v1.h"
-#include "subaru.h"
-#include "kia_v0.h"
-#include "kia_v1.h"
-#include "kia_v2.h"
-#include "kia_v3_v4.h"
-#include "kia_v5.h"
-#include "kia_v6.h"
-#include "kia_v7.h"
-#include "suzuki.h"
-#include "mitsubishi_v0.h"
-#include "star_line.h"
-#include "scher_khan.h"
-#include "sheriff_cfm.h"
-#include "chrysler.h"
-#include "mazda_v0.h"
-#include "honda_static.h"
-#include "honda_v1.h"
-#include "honda_v2.h"
-
-/* [ARF_PORT 2026-10-26] Imported from doctor-firmware / FoxFW. */
-#include "gm_v0.h"
-#include "gm_v1.h"
-#include "toyota_v0.h"
-#include "toyota_v1.h"
-#include "mazda_v1.h"
-#include "mazda_v2.h"
-#include "mercedes_v0.h"
-#include "mercedes_v1.h"
-#include "opel_v1.h"
-#include "bmw.h"
-
-/* Registry consumed by subghz_environment_set_protocol_registry(). */
-extern const SubGhzProtocolRegistry arf_cars_protocol_registry;
+// [ARF_PORT 2026-10-26] Dynamic protocol-registry plugins.
+// The main app no longer owns a big SubGhzProtocolRegistry with pointers to all
+// ~41 decoders (that forced every decoder into the binary AND, when passed to
+// subghz_receiver_alloc_init, instantiated all of them at once -> out of memory).
+// Instead, each ROUTE (AM / AM-VAG / FM / FM-F4 / FM-Honda1) is a separate .fal
+// plugin holding a small registry; the host loads only the active one at RX time
+// (see helpers/arf_cars_protocol_plugin_host.*). So NO decoder .h is included
+// here, and NO arf_cars_protocol_registry is exported anymore.
+//
+// The Protocol Filter scene still needs to list every protocol name; it uses the
+// name-only table below (arf_cars_protocol_names[]), which carries no decoder
+// references and therefore pulls nothing into the main binary.
 
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+// [ARF_PORT] Full list of protocol display names, for the Protocol Filter UI.
+// Keep in sync with the protocols registered across the .fal plugins.
+extern const char* const arf_cars_protocol_names[];
+extern const size_t arf_cars_protocol_names_count;
 
 typedef enum {
     SubGhzProtocolCatalogRouteAMDefault = 0,

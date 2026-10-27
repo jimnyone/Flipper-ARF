@@ -3,6 +3,7 @@
 #include <math.h>
 #include <furi_hal_subghz.h>
 #include "../protocols/protocol_items.h"
+#include "arf_cars_protocol_plugin_host.h" // [ARF_PORT] dynamic registry loading
 #include <applications/drivers/subghz/cc1101_ext/cc1101_ext_interconnect.h>
 #include <lib/subghz/devices/cc1101_int/cc1101_int_interconnect.h>
 #include "subghz_preset_delta.h"
@@ -54,15 +55,25 @@ SubGhzTxRx* subghz_txrx_alloc(void) {
         instance->environment, SUBGHZ_ALUTECH_AT_4N_DIR_NAME);
     subghz_environment_set_nice_flor_s_rainbow_table_file_name(
         instance->environment, SUBGHZ_NICE_FLOR_S_DIR_NAME);
-    subghz_environment_set_protocol_registry(
-        instance->environment, (void*)&arf_cars_protocol_registry);
-    instance->receiver = subghz_receiver_alloc_init(instance->environment);
+
+    // [ARF_PORT 2026-10-26] Do NOT create the receiver with the full registry
+    // here (that instantiated all ~41 decoders at once -> OOM). The receiver and
+    // the active registry are created on demand by the protocol-plugin host
+    // (arf_cars_refresh_protocol_registry), which loads only the .fal for the
+    // current route. Start with no plugin loaded.
+    instance->protocol_plugin_flipper_application = NULL;
+    instance->running_plugin.plugin_pointer = NULL;
+    instance->protocol_registry = NULL;
+    instance->protocol_registry_route_valid = false;
+    instance->rx_callback = NULL;
+    instance->rx_callback_context = NULL;
+    instance->receiver = NULL;
 
     subghz_worker_set_overrun_callback(
         instance->worker, (SubGhzWorkerOverrunCallback)subghz_receiver_reset);
     subghz_worker_set_pair_callback(
         instance->worker, (SubGhzWorkerPairCallback)subghz_receiver_decode);
-    subghz_worker_set_context(instance->worker, instance->receiver);
+    // Worker context (the receiver) is bound later, when the receiver is created.
 
     //set default device External
     subghz_devices_init();
@@ -84,7 +95,14 @@ void subghz_txrx_free(SubGhzTxRx* instance) {
     subghz_devices_deinit();
 
     subghz_worker_free(instance->worker);
-    subghz_receiver_free(instance->receiver);
+    // [ARF_PORT] The receiver is created on demand and may be NULL; free it only
+    // if it exists. Then unload the active registry plugin (empties the
+    // environment registry and unmaps the .fal) before freeing the environment.
+    if(instance->receiver) {
+        subghz_receiver_free(instance->receiver);
+        instance->receiver = NULL;
+    }
+    arf_cars_unload_protocol_plugin(instance);
     subghz_environment_free(instance->environment);
     flipper_format_free(instance->fff_data);
     furi_string_free(instance->preset->name);
@@ -236,6 +254,14 @@ static uint32_t subghz_txrx_rx(SubGhzTxRx* instance, uint32_t frequency) {
         instance->txrx_state != SubGhzTxRxStateRx && instance->txrx_state != SubGhzTxRxStateSleep);
 
     subghz_devices_idle(instance->radio_device);
+
+    // [ARF_PORT 2026-10-26] Load ONLY the protocol registry for the active route
+    // (AM/FM from the preset + band) and (re)create the receiver with just that
+    // subset of decoders. This is the single choke point every RX start passes
+    // through (including the frequency/preset hoppers), so the loaded subset
+    // always tracks the current preset. Replaces instantiating all ~41 decoders
+    // at once, which caused out-of-memory.
+    arf_cars_refresh_protocol_registry(instance, true);
 
     // Gate decoders by the active preset's modulation (AM/FM), mirroring
     // ProtoPirate. Applied here (the single choke point through which all RX
@@ -543,7 +569,11 @@ void subghz_txrx_hopper_update(SubGhzTxRx* instance, float stay_threshold) {
         subghz_txrx_rx_end(instance);
     }
     if(instance->txrx_state == SubGhzTxRxStateIDLE) {
-        subghz_receiver_reset(instance->receiver);
+        // [ARF_PORT] receiver may be NULL between route switches; subghz_txrx_rx()
+        // below recreates it via the plugin host.
+        if(instance->receiver) {
+            subghz_receiver_reset(instance->receiver);
+        }
         instance->preset->frequency =
             subghz_setting_get_hopper_frequency(instance->setting, instance->hopper_idx_frequency);
         subghz_txrx_rx(instance, instance->preset->frequency);
@@ -807,8 +837,11 @@ bool subghz_txrx_load_decoder_by_name_protocol(SubGhzTxRx* instance, const char*
     furi_assert(instance);
     furi_assert(name_protocol);
     bool res = false;
+    // [ARF_PORT] No receiver until a route is loaded -> no decoder match.
     instance->decoder_result =
-        subghz_receiver_search_decoder_base_by_name(instance->receiver, name_protocol);
+        instance->receiver ?
+            subghz_receiver_search_decoder_base_by_name(instance->receiver, name_protocol) :
+            NULL;
     if(instance->decoder_result) {
         res = true;
     }
@@ -839,7 +872,11 @@ bool subghz_txrx_protocol_is_transmittable(SubGhzTxRx* instance, bool check_type
 
 void subghz_txrx_receiver_set_filter(SubGhzTxRx* instance, SubGhzProtocolFlag filter) {
     furi_assert(instance);
-    subghz_receiver_set_filter(instance->receiver, filter);
+    // [ARF_PORT] receiver is created on demand; the host re-applies the Decodable
+    // filter when it creates the receiver, so skipping here when NULL is safe.
+    if(instance->receiver) {
+        subghz_receiver_set_filter(instance->receiver, filter);
+    }
 }
 
 // CC1101 MDMCFG2 register: modulation format is encoded in bits [6:4].
@@ -891,14 +928,24 @@ void subghz_txrx_receiver_apply_modulation_filter(SubGhzTxRx* instance) {
     } else {
         FURI_LOG_W(TAG, "Preset missing MDMCFG2, modulation gate disabled");
     }
-    subghz_receiver_set_modulation_filter(instance->receiver, modulation);
+    // [ARF_PORT] Called from subghz_txrx_rx() right after the registry refresh,
+    // so the receiver normally exists here; guard just in case.
+    if(instance->receiver) {
+        subghz_receiver_set_modulation_filter(instance->receiver, modulation);
+    }
 }
 
 void subghz_txrx_set_rx_callback(
     SubGhzTxRx* instance,
     SubGhzReceiverCallback callback,
     void* context) {
-    subghz_receiver_set_rx_callback(instance->receiver, callback, context);
+    // [ARF_PORT] Save the callback so it survives receiver re-creation on a route
+    // switch; apply it now if the receiver already exists.
+    instance->rx_callback = callback;
+    instance->rx_callback_context = context;
+    if(instance->receiver) {
+        subghz_receiver_set_rx_callback(instance->receiver, callback, context);
+    }
 }
 
 void subghz_txrx_set_raw_file_encoder_worker_callback_end(

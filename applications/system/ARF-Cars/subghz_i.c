@@ -3,6 +3,10 @@
 #include "assets_icons.h"
 #include "subghz/types.h"
 #include "protocols/protocol_items.h"
+// [ARF_PORT] raw.h used to come in transitively via protocol_items.h; now that
+// the decoder headers are gone from protocol_items.h, include it directly for the
+// RAW record/save helpers used here.
+#include "protocols/raw.h"
 #include <furi.h>
 #include <notification/notification.h>
 #include <notification/notification_messages.h>

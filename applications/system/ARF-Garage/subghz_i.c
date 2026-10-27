@@ -3,6 +3,10 @@
 #include "assets_icons.h"
 #include "subghz/types.h"
 #include "protocols/protocol_items.h"
+// [ARF_PORT 2026-10-28] raw.h is no longer pulled in transitively via
+// protocol_items.h (which is now name-only); include it directly for
+// subghz_protocol_raw_gen_fff_data() and the RAW stream helpers.
+#include "protocols/raw.h"
 #include <furi.h>
 #include <notification/notification.h>
 #include <notification/notification_messages.h>

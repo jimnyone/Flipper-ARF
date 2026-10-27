@@ -11,6 +11,10 @@ App(
     fap_icon="icon.png",
     fap_category="Sub-GHz",
     fap_libs=["assets", "hwdrivers"],
+    # [ARF_PORT 2026-10-28] The decoders are NOT compiled into the main binary
+    # anymore (that instantiated all ~61 at once -> OOM). They live in a single
+    # on-demand-loaded .fal plugin below (am_def). The main app keeps only the
+    # catalog + the name-only Protocol Filter list.
     sources=[
         # --- app core (UI copied from applications/main/subghz) ---
         "arf_garage.c",
@@ -21,6 +25,9 @@ App(
         "helpers/subghz_threshold_rssi.c",
         "helpers/subghz_button_labels.c",
         "helpers/subghz_preset_delta.c",
+        # --- dynamic protocol-registry plugin host + loader ---
+        "helpers/arf_garage_plugins.c",
+        "helpers/arf_garage_protocol_plugin_host.c",
         "views/receiver.c",
         "views/transmitter.c",
         "views/subghz_read_raw.c",
@@ -45,71 +52,65 @@ App(
         "scenes/subghz_scene_delete_raw.c",
         "scenes/subghz_scene_need_saving.c",
         "scenes/subghz_scene_protocol_list.c",
-        # --- protocol catalog (own copies; see protocols/protocol_items.h) ---
+        # --- catalog only (route resolution + Protocol Filter names) ---
         "protocols/protocol_items.c",
-        "protocols/urmet.c",
-        "protocols/x10.c",
-        "protocols/common.c",
-        "protocols/allstar_firefly.c",
-        "protocols/alutech_at_4n.c",
-        "protocols/ansonic.c",
-        "protocols/beninca_arc.c",
-        "protocols/bett.c",
-        "protocols/bin_raw.c",
-        "protocols/came.c",
-        "protocols/came_atomo.c",
-        "protocols/came_twee.c",
-        "protocols/chamberlain_code.c",
-        "protocols/clemsa.c",
+        # [ARF_PORT] raw + custom_btn are used directly by the main UI (RAW
+        # record/read and the transmitter's custom-button D-pad), so they stay in
+        # the main binary. The am_def.fal plugin carries its own copies for the
+        # decoders. Everything else lives only in the plugin.
+        "protocols/raw.c",
         "protocols/custom_btn.c",
-        "protocols/dickert_mahs.c",
-        "protocols/ditec_gol4.c",
-        "protocols/doitrand.c",
-        "protocols/dooya.c",
-        "protocols/elplast.c",
-        "protocols/faac_slh.c",
-        "protocols/feron.c",
-        "protocols/gangqi.c",
-        "protocols/gate_tx.c",
-        "protocols/hay21.c",
-        "protocols/hollarm.c",
-        "protocols/holtek.c",
-        "protocols/holtek_ht12x.c",
-        "protocols/honeywell.c",
-        "protocols/honeywell_wdb.c",
-        "protocols/hormann.c",
-        "protocols/ido.c",
-        "protocols/intertechno_v3.c",
-        "protocols/jarolift.c",
-        "protocols/keeloq.c",
+    ],
+)
+
+# -----------------------------------------------------------------------------
+# [ARF_PORT 2026-10-28] Single on-demand protocol-registry plugin (.fal). It
+# carries only the ~21 most-common garage/gate decoders; the host loads it at RX
+# time so the receiver instantiates just that subset (instead of all ~61 -> OOM).
+# fal_embedded=True ships the .fal inside the .fap (extracted to
+# apps_assets/arf_garage/plugins/).
+# -----------------------------------------------------------------------------
+
+# NOTE: appid must be globally unique across ALL apps in the tree. ARF-Cars
+# already declares an "am_def" plugin, so this one is named "arf_garage_am_def"
+# to avoid a duplicate-app-declaration collision (which would silently drop this
+# plugin from the build). The host requests this exact name (see
+# arf_garage_get_registry_plugin_name()); fal_embedded installs it as
+# apps_assets/arf_garage/plugins/arf_garage_am_def.fal.
+App(
+    appid="arf_garage_am_def",
+    apptype=FlipperAppType.PLUGIN,
+    targets=["f7"],
+    entry_point="arf_garage_am_plugin_ep",
+    requires=["arf_garage"],
+    sources=[
+        "protocols/plugins/arf_garage_am_plugin.c",
+        "protocols/raw.c",
+        "protocols/bin_raw.c",
+        "protocols/custom_btn.c",
         "protocols/keeloq_common.c",
-        "protocols/keyfinder.c",
-        "protocols/kinggates_stylo_4k.c",
-        "protocols/legrand.c",
-        "protocols/linear.c",
-        "protocols/linear_delta3.c",
-        "protocols/magellan.c",
-        "protocols/marantec.c",
-        "protocols/marantec24.c",
-        "protocols/mastercode.c",
-        "protocols/megacode.c",
-        "protocols/nero_radio.c",
-        "protocols/nero_sketch.c",
+        # --- the 21 garage/gate decoders ---
+        "protocols/gate_tx.c",
+        "protocols/keeloq.c",
         "protocols/nice_flo.c",
         "protocols/nice_flor_s.c",
-        "protocols/nord_ice.c",
-        "protocols/phoenix_v2.c",
-        "protocols/power_smart.c",
+        "protocols/came.c",
+        "protocols/came_twee.c",
+        "protocols/came_atomo.c",
+        "protocols/faac_slh.c",
+        "protocols/hormann.c",
+        "protocols/somfy_telis.c",
+        "protocols/somfy_keytis.c",
         "protocols/princeton.c",
-        "protocols/raw.c",
-        "protocols/revers_rb2.c",
-        "protocols/roger.c",
+        "protocols/linear.c",
         "protocols/secplus_v1.c",
         "protocols/secplus_v2.c",
+        "protocols/megacode.c",
+        "protocols/holtek.c",
+        "protocols/holtek_ht12x.c",
         "protocols/smc5326.c",
-        "protocols/somfy_keytis.c",
-        "protocols/somfy_telis.c",
-        "protocols/telcoma_edge.c",
-        "protocols/treadmill37.c",
+        "protocols/alutech_at_4n.c",
+        "protocols/jarolift.c",
     ],
+    fal_embedded=True,
 )

@@ -19,66 +19,61 @@
 
 #define SUBGHZ_PROTOCOL_CATALOG_TX_KEY(key) key
 /*
- * Automotive catalog — mirrors the set that is currently enabled in the main
- * Sub-GHz app (lib/subghz/protocols/protocol_items.c), minus the garage/gate
- * protocols, which live in the ARF-Garage app instead.
+ * [ARF_PORT 2026-10-26] Protocol display names for the Protocol Filter UI.
+ * Name-only (no decoder references), so this table pulls NO decoder code into
+ * the main binary. The real decoders live in the per-route .fal plugins.
+ * These must match the `.name` of every protocol registered across the plugins.
  */
-const SubGhzProtocol* const arf_cars_protocol_registry_items[] = {
-    &subghz_protocol_raw,
-    &subghz_protocol_bin_raw,
-
-    &subghz_protocol_vag,
-    &subghz_protocol_ford_v0,
-    &subghz_protocol_psa,
-
-    &fiat_protocol_v0,
-    &fiat_v1_protocol,
-    &fiat_v2_protocol,
-    &renault_v0_protocol,
-    &renault_v1_protocol,
-
-    &subghz_protocol_subaru,
-    &subghz_protocol_kia_v0,
-    &subghz_protocol_kia_v1,
-    &subghz_protocol_kia_v2,
-    &subghz_protocol_kia_v3_v4,
-    &subghz_protocol_kia_v5,
-    &subghz_protocol_kia_v6,
-    &subghz_protocol_kia_v7,
-    &subghz_protocol_suzuki,
-    &subghz_protocol_mitsubishi_v0,
-    &subghz_protocol_star_line,
-    &subghz_protocol_scher_khan,
-    &subghz_protocol_sheriff_cfm,
-    &subghz_protocol_chrysler,
-    &subghz_protocol_mazda_v0,
-
-    &ford_protocol_v1,
-    &ford_protocol_v2,
-    &ford_protocol_v3,
-
-    &honda_static_protocol,
-    &honda_v1_protocol,
-    &honda_v2_protocol,
-
-    /* [ARF_PORT 2026-10-26] Imported from doctor-firmware / FoxFW. Kept
-     * commented in lib/subghz/protocols/protocol_items.c as the in-firmware
-     * backup; enabled here because this FAP carries its own catalog. */
-    &subghz_protocol_gm_v0,
-    &subghz_protocol_gm_v1,
-    &subghz_protocol_toyota_v0,
-    &subghz_protocol_toyota_v1,
-    &subghz_protocol_mazda_v1,
-    &subghz_protocol_mazda_v2,
-    &subghz_protocol_mercedes_v0,
-    &subghz_protocol_mercedes_v1,
-    &subghz_protocol_opel_v1,
-    &subghz_protocol_bmw,
+const char* const arf_cars_protocol_names[] = {
+    "RAW",
+    "BinRAW",
+    "VAG GROUP",
+    "FORD V0",
+    "PSA GROUP",
+    "Fiat V0",
+    "Fiat V1",
+    "Fiat V2",
+    "Renault V0",
+    "Renault V1",
+    "SUBARU",
+    "KIA/HYU V0",
+    "KIA/HYU V1",
+    "KIA/HYU V2",
+    "KIA/HYU V3/V4",
+    "KIA/HYU V5",
+    "KIA/HYU V6",
+    "Kia V7",
+    "SUZUKI",
+    "Mitsubishi V0",
+    "Star Line",
+    "Scher-Khan",
+    "Sheriff CFM",
+    "Chrysler",
+    "Mazda V0",
+    "Ford V1",
+    "Ford V2",
+    "Ford V3",
+    "Honda Static",
+    "Honda V1",
+    "Honda V2",
+    "GM V0",
+    "GM V1",
+    "Toyota V0",
+    "Toyota V1",
+    "Mazda V1",
+    "Mazda V2",
+    "Mercedes V0",
+    "Mercedes V1",
+    "Opel V1",
+    "BMW",
+    // [ARF_PORT 2026-10-28] Generic KeeLoq decoder — present in BOTH the AM and FM
+    // route plugins (many car remotes are KeeLoq-based in either modulation).
+    "KeeLoq",
 };
 
-const SubGhzProtocolRegistry arf_cars_protocol_registry = {
-    .items = arf_cars_protocol_registry_items,
-    .size = COUNT_OF(arf_cars_protocol_registry_items)};
+const size_t arf_cars_protocol_names_count =
+    sizeof(arf_cars_protocol_names) / sizeof(arf_cars_protocol_names[0]);
+
 typedef enum {
     SubGhzProtocolCatalogModulationAM = 0,
     SubGhzProtocolCatalogModulationFM,

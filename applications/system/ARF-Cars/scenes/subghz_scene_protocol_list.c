@@ -52,14 +52,13 @@ static void subghz_scene_protocol_list_master_changed(VariableItem* item) {
 
     bool changed = false;
     if(disable_all) {
-        // Add every registered protocol to the OFF list.
-        size_t protocol_count = subghz_protocol_registry_count(&arf_cars_protocol_registry);
-        for(size_t i = 0; i < protocol_count; i++) {
-            const SubGhzProtocol* protocol =
-                subghz_protocol_registry_get_by_index(&arf_cars_protocol_registry, i);
-            if(!protocol) continue;
-            if(subghz_last_settings_protocol_filter_set(
-                   subghz->last_settings, protocol->name, true)) {
+        // [ARF_PORT] Add every protocol name to the OFF list. Enumerated from the
+        // name-only table (arf_cars_protocol_names[]) instead of a decoder
+        // registry, since the main binary no longer holds the decoders.
+        for(size_t i = 0; i < arf_cars_protocol_names_count; i++) {
+            const char* name = arf_cars_protocol_names[i];
+            if(!name) continue;
+            if(subghz_last_settings_protocol_filter_set(subghz->last_settings, name, true)) {
                 changed = true;
             }
         }
@@ -82,7 +81,8 @@ static void subghz_scene_protocol_list_rebuild(SubGhz* subghz) {
     variable_item_list_reset(list);
     subghz_scene_protocol_list_free_contexts();
 
-    size_t protocol_count = subghz_protocol_registry_count(&arf_cars_protocol_registry);
+    // [ARF_PORT] Enumerate from the name-only table (see protocol_items.h).
+    size_t protocol_count = arf_cars_protocol_names_count;
     protocol_list_item_contexts =
         malloc(sizeof(SubGhzProtocolListItemContext) * protocol_count);
     furi_check(protocol_list_item_contexts);
@@ -115,22 +115,17 @@ static void subghz_scene_protocol_list_rebuild(SubGhz* subghz) {
     }
 
     for(size_t i = 0; i < protocol_count; i++) {
-        const SubGhzProtocol* protocol =
-            subghz_protocol_registry_get_by_index(&arf_cars_protocol_registry, i);
-        if(!protocol) continue;
+        const char* name = arf_cars_protocol_names[i];
+        if(!name) continue;
 
         protocol_list_item_contexts[i].subghz = subghz;
-        protocol_list_item_contexts[i].protocol_name = protocol->name;
+        protocol_list_item_contexts[i].protocol_name = name;
 
         VariableItem* item = variable_item_list_add(
-            list,
-            protocol->name,
-            2,
-            subghz_scene_protocol_list_item_changed,
-            &protocol_list_item_contexts[i]);
+            list, name, 2, subghz_scene_protocol_list_item_changed, &protocol_list_item_contexts[i]);
 
         bool is_disabled =
-            subghz_last_settings_protocol_filter_contains(subghz->last_settings, protocol->name);
+            subghz_last_settings_protocol_filter_contains(subghz->last_settings, name);
         variable_item_set_current_value_index(item, is_disabled ? 1 : 0);
         variable_item_set_current_value_text(item, is_disabled ? "OFF" : "ON");
     }

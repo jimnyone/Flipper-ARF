@@ -16,94 +16,36 @@
  *   4. Add the .c to `sources` in application.fam.
  */
 
-#include <lib/subghz/registry.h>
-#include <lib/subghz/subghz_protocol_registry.h>
-
-#include "raw.h"
-#include "bin_raw.h"
-#include "gate_tx.h"
-#include "keeloq.h"
-#include "nice_flo.h"
-#include "nice_flor_s.h"
-#include "came.h"
-#include "came_twee.h"
-#include "came_atomo.h"
-#include "faac_slh.h"
-#include "hormann.h"
-#include "somfy_telis.h"
-#include "somfy_keytis.h"
-#include "princeton.h"
-#include "linear.h"
-#include "linear_delta3.h"
-#include "secplus_v1.h"
-#include "secplus_v2.h"
-#include "megacode.h"
-#include "holtek.h"
-#include "holtek_ht12x.h"
-#include "chamberlain_code.h"
-#include "marantec.h"
-#include "marantec24.h"
-#include "doitrand.h"
-#include "phoenix_v2.h"
-#include "clemsa.h"
-#include "ansonic.h"
-#include "smc5326.h"
-#include "dooya.h"
-#include "alutech_at_4n.h"
-#include "kinggates_stylo_4k.h"
-#include "mastercode.h"
-#include "dickert_mahs.h"
-#include "gangqi.h"
-#include "hay21.h"
-#include "revers_rb2.h"
-#include "roger.h"
-#include "telcoma_edge.h"
-#include "beninca_arc.h"
-#include "keyfinder.h"
-#include "nord_ice.h"
-#include "allstar_firefly.h"
-#include "ditec_gol4.h"
-#include "bett.h"
-#include "power_smart.h"
-#include "nero_sketch.h"
-#include "nero_radio.h"
-#include "ido.h"
-#include "intertechno_v3.h"
-#include "magellan.h"
-#include "honeywell.h"
-#include "honeywell_wdb.h"
-#include "legrand.h"
-#include "hollarm.h"
-#include "feron.h"
-#include "elplast.h"
-#include "treadmill37.h"
-#include "jarolift.h"
-
-/* [ARF_PORT 2026-10-26] Imported from doctor-firmware / FoxFW. */
-#include "urmet.h"
-#include "x10.h"
-
-/* Registry consumed by subghz_environment_set_protocol_registry(). */
-extern const SubGhzProtocolRegistry arf_garage_protocol_registry;
+// [ARF_PORT 2026-10-28] The decoder headers are NOT included here anymore. The
+// decoders used to be compiled into the main binary and instantiated all at once
+// by the receiver, which caused OOM when opening the app. They now live in a
+// single AM route plugin (plugins/arf_garage_am_plugin.c -> am_def.fal) that is
+// loaded on demand. The main binary keeps only a name-only table (below) used by
+// the Protocol Filter scene, plus raw/bin_raw/custom_btn which the UI needs.
+// NO <lib/subghz/registry.h> or decoder headers here — a name-only table pulls in
+// no decoder code.
 
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
+// [ARF_PORT 2026-10-28] Name-only catalog for the Protocol Filter ("Protocol
+// List") scene. These are the garage/gate protocols shipped in the am_def.fal
+// plugin. Strings only — NO decoder references — so the main binary never pulls
+// in (and never instantiates) any decoder. Keep this in sync with the registry
+// declared in protocols/plugins/arf_garage_am_plugin.c.
+extern const char* const arf_garage_protocol_names[];
+extern const size_t arf_garage_protocol_names_count;
+
+// [ARF_PORT 2026-10-28] Garage is (practically) all AM/OOK, so there is a single
+// route. The enum is kept (one value) so the shared plugin host code can be
+// ported verbatim from ARF-Cars.
 typedef enum {
     SubGhzProtocolCatalogRouteAMDefault = 0,
-    SubGhzProtocolCatalogRouteAMVag,
-    SubGhzProtocolCatalogRouteFMDefault,
-    SubGhzProtocolCatalogRouteFMF4,
-    SubGhzProtocolCatalogRouteFMHonda1,
 } SubGhzProtocolCatalogRoute;
 
 typedef enum {
     SubGhzProtocolCatalogRoutePolicyAMDefault = 0,
-    SubGhzProtocolCatalogRoutePolicyAMVag,
-    SubGhzProtocolCatalogRoutePolicyFMDefault,
-    SubGhzProtocolCatalogRoutePolicyFMF4,
-    SubGhzProtocolCatalogRoutePolicyFMHonda1,
     SubGhzProtocolCatalogRoutePolicyByModulation,
 } SubGhzProtocolCatalogRoutePolicy;
 

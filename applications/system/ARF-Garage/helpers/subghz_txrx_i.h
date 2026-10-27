@@ -2,6 +2,12 @@
 
 #include "subghz_txrx.h"
 
+// [ARF_PORT 2026-10-28] Dynamic protocol-registry plugin state (see
+// helpers/arf_garage_protocol_plugin_host.*). Only the single garage/gate
+// registry lives in RAM, loaded on demand.
+#include "arf_garage_plugins.h"
+#include <lib/flipper_application/flipper_application.h>
+
 struct SubGhzTxRx {
     SubGhzWorker* worker;
 
@@ -13,6 +19,19 @@ struct SubGhzTxRx {
 
     SubGhzRadioPreset* preset;
     SubGhzSetting* setting;
+
+    // [ARF_PORT] Active protocol-registry plugin (the loaded .fal), the route it
+    // provides, and the registry currently bound into the environment.
+    FlipperApplication* protocol_plugin_flipper_application;
+    ArfGaragePlugin running_plugin;
+    SubGhzProtocolCatalogRoute protocol_registry_route;
+    const SubGhzProtocolRegistry* protocol_registry;
+    bool protocol_registry_route_valid; // false until a route has been loaded once
+
+    // [ARF_PORT] Saved RX callback/context, so it can be re-applied whenever the
+    // receiver is recreated for a new route.
+    SubGhzReceiverCallback rx_callback;
+    void* rx_callback_context;
 
     uint8_t hopper_timeout;
     uint8_t hopper_idx_frequency;
