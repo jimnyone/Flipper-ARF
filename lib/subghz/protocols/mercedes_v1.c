@@ -181,6 +181,7 @@ static bool mercedes_v1_to_storage(uint64_t* hi, uint64_t* lo) {
     return mercedes_v1_fields_valid(*hi, *lo);
 }
 
+<<<<<<< HEAD
 /* [ARF_PORT] Upstream caches three values in SubGhzBlockGeneric fields that
  * ARF's generic block does not have: .extra (bit 13), .data_3 (the hop, bits
  * 67..120) and .te (a compile-time constant, write-only upstream). All of them
@@ -198,6 +199,8 @@ static uint64_t mercedes_v1_hop_from_payload(uint64_t hi, uint64_t lo) {
     return hop & MERCEDES_V1_HOP_MASK;
 }
 
+=======
+>>>>>>> e4610aae94e4a373a5f0845c30386983eb1f2c65
 static void mercedes_v1_parse_fields(SubGhzBlockGeneric* instance) {
     const uint64_t hi = instance->data;
     const uint64_t lo = instance->data_2;
@@ -205,7 +208,19 @@ static void mercedes_v1_parse_fields(SubGhzBlockGeneric* instance) {
     instance->serial = ((uint32_t)mercedes_v1_bits(hi, lo, 16, 16) << 16) |
                        mercedes_v1_bits(hi, lo, 32, 16);
     instance->btn = mercedes_v1_get_bit(hi, lo, 1) ? 1 : 0;
+<<<<<<< HEAD
     instance->cnt = mercedes_v1_get_counter(hi, lo);
+=======
+    instance->extra = mercedes_v1_get_bit(hi, lo, 13) ? 0 : 1;
+    instance->cnt = mercedes_v1_get_counter(hi, lo);
+
+    uint64_t hop = 0;
+    for(uint8_t i = 67; i <= 120; i++) {
+        hop = (hop << 1) | (mercedes_v1_get_bit(hi, lo, i) ? 1ULL : 0ULL);
+    }
+    instance->data_3 = hop & MERCEDES_V1_HOP_MASK;
+    instance->te = MERCEDES_V1_TE_US;
+>>>>>>> e4610aae94e4a373a5f0845c30386983eb1f2c65
     instance->data_count_bit = MERCEDES_V1_PAYLOAD_BITS;
 }
 
@@ -218,19 +233,28 @@ static void mercedes_v1_rebuild_payload(SubGhzBlockGeneric* instance) {
     mercedes_v1_set_bit(&hi, &lo, 0, true);
     mercedes_v1_set_bit(&hi, &lo, 1, type_bit);
     mercedes_v1_set_bit(&hi, &lo, 3, !(type_bit ^ state_bit));
+<<<<<<< HEAD
     mercedes_v1_set_bit(&hi, &lo, 13, !(mercedes_v1_extra_from_payload(hi, lo) & 1U));
+=======
+    mercedes_v1_set_bit(&hi, &lo, 13, !(instance->extra & 1U));
+>>>>>>> e4610aae94e4a373a5f0845c30386983eb1f2c65
     mercedes_v1_set_counter(&hi, &lo, instance->cnt);
     mercedes_v1_set_bit(&hi, &lo, 121, true);
 
     instance->data = hi;
     instance->data_2 = lo;
     instance->data_count_bit = MERCEDES_V1_PAYLOAD_BITS;
+<<<<<<< HEAD
+=======
+    instance->te = MERCEDES_V1_TE_US;
+>>>>>>> e4610aae94e4a373a5f0845c30386983eb1f2c65
 }
 
 static const char* mercedes_v1_btn_name(uint8_t btn) {
     return btn ? "Unlock" : "Lock";
 }
 
+<<<<<<< HEAD
 /* [ARF_PORT] Static button map (ARF style) replacing the upstream runtime
  * subghz_custom_btn_configure_map(). Codes from the upstream "Mercedes V1"
  * entry; labels live in subghz_button_labels.c. */
@@ -242,6 +266,13 @@ static uint8_t mercedes_v1_get_btn_code(void) {
         return 0x00U; /* Lock */
     default:
         return subghz_custom_btn_get_original() & 1U;
+=======
+static uint8_t mercedes_v1_get_btn_code(uint8_t original_code) {
+    switch(subghz_custom_btn_get()) {
+    case SUBGHZ_CUSTOM_BTN_UP: return 0; /* Lock */
+    case SUBGHZ_CUSTOM_BTN_DOWN: return 1; /* Unlock */
+    default: return original_code & 1U;
+>>>>>>> e4610aae94e4a373a5f0845c30386983eb1f2c65
     }
 }
 
@@ -291,11 +322,19 @@ static bool mercedes_v1_get_upload(SubGhzProtocolEncoderMercedesV1* instance) {
     size_t index = 0;
 
     uint8_t btn = instance->generic.btn;
+<<<<<<< HEAD
     if((subghz_custom_btn_get_original() == 0)) {
         subghz_custom_btn_set_original(btn);
         subghz_custom_btn_set_max(1);
     }
     btn = mercedes_v1_get_btn_code();
+=======
+    if(subghz_custom_btn_get_original() == 0) {
+        subghz_custom_btn_set_original(btn ? SUBGHZ_CUSTOM_BTN_DOWN : SUBGHZ_CUSTOM_BTN_UP);
+    }
+    subghz_custom_btn_set_max(2);
+    btn = mercedes_v1_get_btn_code(instance->generic.btn);
+>>>>>>> e4610aae94e4a373a5f0845c30386983eb1f2c65
     subghz_block_generic_global_button_override_get(&btn);
     if(btn != instance->generic.btn) {
         instance->generic.btn = btn;
@@ -343,10 +382,17 @@ SubGhzProtocolStatus
         return SubGhzProtocolStatusErrorValueBitCount;
     }
     mercedes_v1_parse_fields(&instance->generic);
+<<<<<<< HEAD
     if((subghz_custom_btn_get_original() == 0)) {
         subghz_custom_btn_set_original(instance->generic.btn);
         subghz_custom_btn_set_max(1);
     }
+=======
+    if(subghz_custom_btn_get_original() == 0) {
+        subghz_custom_btn_set_original(instance->generic.btn ? SUBGHZ_CUSTOM_BTN_DOWN : SUBGHZ_CUSTOM_BTN_UP);
+    }
+    subghz_custom_btn_set_max(2);
+>>>>>>> e4610aae94e4a373a5f0845c30386983eb1f2c65
     flipper_format_read_uint32(flipper_format, "Repeat", (uint32_t*)&instance->encoder.repeat, 1);
     instance->encoder.front = 0;
     if(!mercedes_v1_get_upload(instance)) return SubGhzProtocolStatusErrorEncoderGetUpload;
@@ -444,10 +490,17 @@ static void mercedes_v1_try_callback(SubGhzProtocolDecoderMercedesV1* instance) 
     instance->generic.data_2 = lo;
     instance->generic.data_count_bit = MERCEDES_V1_PAYLOAD_BITS;
     mercedes_v1_parse_fields(&instance->generic);
+<<<<<<< HEAD
     if((subghz_custom_btn_get_original() == 0)) {
         subghz_custom_btn_set_original(instance->generic.btn);
         subghz_custom_btn_set_max(1);
     }
+=======
+    if(subghz_custom_btn_get_original() == 0) {
+        subghz_custom_btn_set_original(instance->generic.btn ? SUBGHZ_CUSTOM_BTN_DOWN : SUBGHZ_CUSTOM_BTN_UP);
+    }
+    subghz_custom_btn_set_max(2);
+>>>>>>> e4610aae94e4a373a5f0845c30386983eb1f2c65
     if(instance->base.callback) {
         instance->base.callback(&instance->base, instance->base.context);
     }
@@ -559,8 +612,12 @@ void subghz_protocol_decoder_mercedes_v1_feed(void* context, bool level, uint32_
 uint8_t subghz_protocol_decoder_mercedes_v1_get_hash_data(void* context) {
     furi_check(context);
     SubGhzProtocolDecoderMercedesV1* instance = context;
+<<<<<<< HEAD
     uint64_t mix = instance->generic.data ^ instance->generic.data_2 ^
                    mercedes_v1_hop_from_payload(instance->generic.data, instance->generic.data_2);
+=======
+    uint64_t mix = instance->generic.data ^ instance->generic.data_2 ^ instance->generic.data_3;
+>>>>>>> e4610aae94e4a373a5f0845c30386983eb1f2c65
     return (uint8_t)(mix ^ (mix >> 8) ^ (mix >> 16) ^ (mix >> 24) ^ (mix >> 32) ^ (mix >> 40));
 }
 
@@ -600,10 +657,18 @@ void subghz_protocol_decoder_mercedes_v1_get_string(void* context, FuriString* o
     subghz_block_generic_global.cnt_length_bit = MERCEDES_V1_CNT_BITS;
     subghz_block_generic_global.current_btn = instance->generic.btn;
     subghz_block_generic_global.current_cnt = instance->generic.cnt;
+<<<<<<< HEAD
     if((subghz_custom_btn_get_original() == 0)) {
         subghz_custom_btn_set_original(instance->generic.btn);
     }
     subghz_custom_btn_set_max(1);
+=======
+    if(subghz_custom_btn_get_original() == 0) {
+        subghz_custom_btn_set_original(
+            instance->generic.btn ? SUBGHZ_CUSTOM_BTN_DOWN : SUBGHZ_CUSTOM_BTN_UP);
+    }
+    subghz_custom_btn_set_max(2);
+>>>>>>> e4610aae94e4a373a5f0845c30386983eb1f2c65
 
     furi_string_cat_printf(
         output,
@@ -614,9 +679,15 @@ void subghz_protocol_decoder_mercedes_v1_get_string(void* context, FuriString* o
         instance->generic.protocol_name,
         (unsigned long)instance->generic.serial,
         mercedes_v1_btn_name(instance->generic.btn),
+<<<<<<< HEAD
         (unsigned long)mercedes_v1_extra_from_payload(
             instance->generic.data, instance->generic.data_2),
         (unsigned long)instance->generic.cnt,
         (unsigned long long)mercedes_v1_hop_from_payload(
             instance->generic.data, instance->generic.data_2));
+=======
+        (unsigned long)instance->generic.extra,
+        (unsigned long)instance->generic.cnt,
+        (unsigned long long)instance->generic.data_3);
+>>>>>>> e4610aae94e4a373a5f0845c30386983eb1f2c65
 }

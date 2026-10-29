@@ -158,10 +158,14 @@ static void mercedes_v0_feed(void* context, bool level, uint32_t duration) {
                 instance->generic.data_2 = instance->lo;
                 instance->generic.data_count_bit = MERCEDES_V0_BITS;
                 mercedes_v0_parse_command(&instance->generic);
+<<<<<<< HEAD
                 /* [ARF_PORT] Upstream also stores the symbol time in
                  * SubGhzBlockGeneric.te (serialized as "TE"). ARF's generic
                  * block has no such field, and this protocol always sets it to
                  * the same constant and never reads it back, so it is dropped. */
+=======
+                instance->generic.te = MERCEDES_V0_TE_US;
+>>>>>>> e4610aae94e4a373a5f0845c30386983eb1f2c65
                 if(instance->base.callback) {
                     instance->base.callback(&instance->base, instance->base.context);
                 }
@@ -194,7 +198,11 @@ static SubGhzProtocolStatus mercedes_v0_deserialize(void* context, FlipperFormat
     instance->generic.serial = 0;
     mercedes_v0_parse_command(&instance->generic);
     instance->generic.cnt = 0;
+<<<<<<< HEAD
     /* [ARF_PORT] generic.te dropped, see note in the decoder feed path. */
+=======
+    instance->generic.te = MERCEDES_V0_TE_US;
+>>>>>>> e4610aae94e4a373a5f0845c30386983eb1f2c65
     return SubGhzProtocolStatusOk;
 }
 
@@ -245,6 +253,7 @@ static void mercedes_v0_encoder_burst(MercedesV0Encoder* instance, uint64_t hi) 
     }
 }
 
+<<<<<<< HEAD
 /* [ARF_PORT] Static button map (ARF style) replacing the upstream runtime
  * subghz_custom_btn_configure_map(). Codes from the upstream "Mercedes V0"
  * entry; labels live in subghz_button_labels.c. Returns false when the pressed
@@ -277,6 +286,35 @@ static bool mercedes_v0_encoder_upload(MercedesV0Encoder* instance) {
     uint8_t mapped = 0;
     bool selected = mercedes_v0_custom_btn_code(&mapped);
     if(selected) command = mapped;
+=======
+static bool mercedes_v0_encoder_upload(MercedesV0Encoder* instance) {
+    instance->encoder.size_upload = 0;
+    mercedes_v0_parse_command(&instance->generic);
+    if(subghz_custom_btn_get_original() == 0) {
+        const uint8_t command = instance->generic.btn;
+        const uint8_t original_id = command == 0xC ? SUBGHZ_CUSTOM_BTN_UP :
+            command == 0x8 ? SUBGHZ_CUSTOM_BTN_DOWN :
+            command == 0xA ? SUBGHZ_CUSTOM_BTN_LEFT : SUBGHZ_CUSTOM_BTN_OK;
+        subghz_custom_btn_set_original(original_id);
+    }
+    subghz_custom_btn_set_max(3);
+
+    uint8_t command = instance->generic.btn;
+    bool selected = subghz_custom_btn_get() != SUBGHZ_CUSTOM_BTN_OK;
+    switch(subghz_custom_btn_get()) {
+    case SUBGHZ_CUSTOM_BTN_UP:
+        command = 0xC; /* Lock */
+        break;
+    case SUBGHZ_CUSTOM_BTN_DOWN:
+        command = 0x8; /* Unlock */
+        break;
+    case SUBGHZ_CUSTOM_BTN_LEFT:
+        command = 0xA; /* Auxiliary */
+        break;
+    default:
+        break; /* Original command */
+    }
+>>>>>>> e4610aae94e4a373a5f0845c30386983eb1f2c65
     if(subghz_block_generic_global_button_override_get(&command)) selected = true;
     if(command > 0xF || !mercedes_v0_prefix_valid((uint64_t)command << 60)) return false;
 
@@ -337,10 +375,21 @@ static void mercedes_v0_get_string(void* context, FuriString* output) {
     subghz_block_generic_global.btn_is_available = true;
     subghz_block_generic_global.btn_length_bit = 4;
     subghz_block_generic_global.current_btn = instance->generic.btn;
+<<<<<<< HEAD
     if((subghz_custom_btn_get_original() == 0)) {
         subghz_custom_btn_set_original(instance->generic.btn);
     }
     subghz_custom_btn_set_max(SUBGHZ_CUSTOM_BTN_DOWN);
+=======
+    if(subghz_custom_btn_get_original() == 0) {
+        const uint8_t command = instance->generic.btn;
+        const uint8_t original_id = command == 0xC ? SUBGHZ_CUSTOM_BTN_UP :
+            command == 0x8 ? SUBGHZ_CUSTOM_BTN_DOWN :
+            command == 0xA ? SUBGHZ_CUSTOM_BTN_LEFT : SUBGHZ_CUSTOM_BTN_OK;
+        subghz_custom_btn_set_original(original_id);
+    }
+    subghz_custom_btn_set_max(3);
+>>>>>>> e4610aae94e4a373a5f0845c30386983eb1f2c65
     subghz_block_generic_global.cnt_is_available = false;
     furi_string_cat_printf(
         output,

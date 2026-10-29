@@ -379,6 +379,25 @@ static bool mazda_v2_button_is_valid(uint8_t button) {
     }
 }
 
+<<<<<<< HEAD
+=======
+static uint8_t mazda_v2_custom_id_from_code(uint8_t button) {
+    switch(mazda_v2_btn7(button)) {
+    case MAZDA_V2_BTN_LOCK:
+    case MAZDA_V2_BTN_LOCK_ALT:
+        return SUBGHZ_CUSTOM_BTN_UP;
+    case MAZDA_V2_BTN_UNLOCK:
+    case MAZDA_V2_BTN_UNLOCK_ALT:
+        return SUBGHZ_CUSTOM_BTN_DOWN;
+    case MAZDA_V2_BTN_TRUNK:
+    case MAZDA_V2_BTN_TRUNK_ALT:
+        return SUBGHZ_CUSTOM_BTN_LEFT;
+    default:
+        return SUBGHZ_CUSTOM_BTN_OK;
+    }
+}
+
+>>>>>>> e4610aae94e4a373a5f0845c30386983eb1f2c65
 static const uint8_t* mazda_v2_table_row(uint8_t btn, uint8_t idx) {
     const uint8_t(*table)[6] = mazda_v2_button_is_lock(btn) ? mazda_v2_table_lock :
                                                               mazda_v2_table_default;
@@ -429,10 +448,18 @@ static const char* mazda_v2_get_button_name(uint8_t button) {
     }
 }
 
+<<<<<<< HEAD
 static uint8_t mazda_v2_get_btn_code(void) {
     const uint8_t original = mazda_v2_btn7(subghz_custom_btn_get_original());
     const bool alt = (original == MAZDA_V2_BTN_LOCK_ALT) ||
                      (original == MAZDA_V2_BTN_UNLOCK_ALT) || (original == MAZDA_V2_BTN_TRUNK_ALT);
+=======
+static uint8_t mazda_v2_get_btn_code(uint8_t original_wire_code) {
+    const uint8_t original = mazda_v2_btn7(original_wire_code);
+    const bool alt = (original == MAZDA_V2_BTN_LOCK_ALT) ||
+                     (original == MAZDA_V2_BTN_UNLOCK_ALT) ||
+                     (original == MAZDA_V2_BTN_TRUNK_ALT);
+>>>>>>> e4610aae94e4a373a5f0845c30386983eb1f2c65
     const uint8_t lock = alt ? MAZDA_V2_BTN_LOCK_ALT : MAZDA_V2_BTN_LOCK;
     const uint8_t unlock = alt ? MAZDA_V2_BTN_UNLOCK_ALT : MAZDA_V2_BTN_UNLOCK;
     const uint8_t trunk = alt ? MAZDA_V2_BTN_TRUNK_ALT : MAZDA_V2_BTN_TRUNK;
@@ -440,6 +467,7 @@ static uint8_t mazda_v2_get_btn_code(void) {
     switch(subghz_custom_btn_get()) {
     case SUBGHZ_CUSTOM_BTN_UP:
         return lock;
+<<<<<<< HEAD
     case SUBGHZ_CUSTOM_BTN_OK:
         return unlock;
     case SUBGHZ_CUSTOM_BTN_DOWN:
@@ -449,6 +477,16 @@ static uint8_t mazda_v2_get_btn_code(void) {
     }
 }
 
+=======
+    case SUBGHZ_CUSTOM_BTN_DOWN:
+        return unlock;
+    case SUBGHZ_CUSTOM_BTN_LEFT:
+        return trunk;
+    default:
+        return original_wire_code & 0x7FU;
+    }
+}
+>>>>>>> e4610aae94e4a373a5f0845c30386983eb1f2c65
 static void
     mazda_v2_extract(uint64_t data, uint8_t hop[6], uint8_t* idx, uint8_t* hdr, uint8_t* btn) {
     hop[0] = (uint8_t)((data >> 40) & 0xFFU);
@@ -483,15 +521,20 @@ static void mazda_v2_decode_key(SubGhzBlockGeneric* generic) {
     generic->btn = btn;
     generic->cnt = idx;
     generic->serial = idx;
+<<<<<<< HEAD
     /* [ARF_PORT] Upstream caches the header byte in SubGhzBlockGeneric.extra
      * (serialized as "Extra"). ARF's generic block has no such field, and
      * mazda_v2_decode_key() always runs before any read, so the value is simply
      * re-derived via mazda_v2_header_from_data(). The header is still persisted
      * by this protocol itself as the "Hdr" field in serialize(). */
+=======
+    generic->extra = hdr;
+>>>>>>> e4610aae94e4a373a5f0845c30386983eb1f2c65
     generic->data_2 = generic->data & 0xFFFFFFFFFFFFULL;
     generic->data_count_bit = subghz_protocol_mazda_v2_const.min_count_bit_for_found;
 }
 
+<<<<<<< HEAD
 /* [ARF_PORT] Replacement for the dropped SubGhzBlockGeneric.extra cache. */
 static uint8_t mazda_v2_header_from_data(uint64_t data) {
     uint8_t hop[6];
@@ -502,6 +545,8 @@ static uint8_t mazda_v2_header_from_data(uint64_t data) {
     return hdr;
 }
 
+=======
+>>>>>>> e4610aae94e4a373a5f0845c30386983eb1f2c65
 static void mazda_v2_mix_hop(
     uint8_t hop[6],
     uint8_t idx,
@@ -918,11 +963,19 @@ SubGhzProtocolStatus
         cnt &= 0xFFU;
 
         const uint8_t btn_hi = (uint8_t)(btn & 0x80U);
+<<<<<<< HEAD
         if((subghz_custom_btn_get_original() == 0)) {
             subghz_custom_btn_set_original((uint8_t)(btn & 0x7FU));
         }
         subghz_custom_btn_set_max(MAZDA_V2_BTN_MAX);
         btn = (uint8_t)((mazda_v2_get_btn_code() & 0x7FU) | btn_hi);
+=======
+        if(subghz_custom_btn_get_original() == 0) {
+            subghz_custom_btn_set_original(mazda_v2_custom_id_from_code(btn));
+        }
+        subghz_custom_btn_set_max(MAZDA_V2_BTN_MAX);
+        btn = (uint8_t)((mazda_v2_get_btn_code(btn) & 0x7FU) | btn_hi);
+>>>>>>> e4610aae94e4a373a5f0845c30386983eb1f2c65
         subghz_block_generic_global_button_override_get(&btn);
 
         if(!subghz_block_generic_global_counter_override_get(&cnt)) {
@@ -1077,7 +1130,11 @@ SubGhzProtocolStatus subghz_protocol_decoder_mazda_v2_serialize(
     SubGhzProtocolStatus ret =
         subghz_block_generic_serialize(&instance->generic, flipper_format, preset);
     if(ret == SubGhzProtocolStatusOk) {
+<<<<<<< HEAD
         uint32_t hdr = mazda_v2_header_from_data(instance->generic.data);
+=======
+        uint32_t hdr = instance->generic.extra;
+>>>>>>> e4610aae94e4a373a5f0845c30386983eb1f2c65
         flipper_format_write_uint32(flipper_format, "Hdr", &hdr, 1);
         ret = mazda_v2_write_display(
             flipper_format, instance->generic.protocol_name, instance->generic.btn);
@@ -1114,8 +1171,13 @@ void subghz_protocol_decoder_mazda_v2_get_string(void* context, FuriString* outp
     subghz_block_generic_global.cnt_length_bit = 8;
     subghz_block_generic_global.current_btn = instance->generic.btn;
     subghz_block_generic_global.current_cnt = instance->generic.cnt;
+<<<<<<< HEAD
     if((subghz_custom_btn_get_original() == 0)) {
         subghz_custom_btn_set_original((uint8_t)(instance->generic.btn & 0x7FU));
+=======
+    if(subghz_custom_btn_get_original() == 0) {
+        subghz_custom_btn_set_original(mazda_v2_custom_id_from_code(instance->generic.btn));
+>>>>>>> e4610aae94e4a373a5f0845c30386983eb1f2c65
     }
     subghz_custom_btn_set_max(MAZDA_V2_BTN_MAX);
 
@@ -1131,7 +1193,11 @@ void subghz_protocol_decoder_mazda_v2_get_string(void* context, FuriString* outp
         (unsigned long long)instance->generic.data,
         instance->generic.btn,
         mazda_v2_get_button_name(instance->generic.btn),
+<<<<<<< HEAD
         mazda_v2_header_from_data(instance->generic.data),
+=======
+        (uint8_t)instance->generic.extra,
+>>>>>>> e4610aae94e4a373a5f0845c30386983eb1f2c65
         (unsigned long)(instance->generic.cnt & 0xFFU),
         (unsigned long long)(instance->generic.data_2 & 0xFFFFFFFFFFFFULL));
 }

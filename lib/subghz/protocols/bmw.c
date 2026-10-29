@@ -31,7 +31,11 @@
 #define BMW_BTN_UNLOCK        0x1U
 #define BMW_BTN_LOCK          0x2U
 #define BMW_BTN_TRUNK         0x3U
+<<<<<<< HEAD
 #define BMW_BTN_MAX           2
+=======
+#define BMW_BTN_MAX           3
+>>>>>>> e4610aae94e4a373a5f0845c30386983eb1f2c65
 #define BMW_REPEAT_GAP_US     200000
 #define BMW_REPEAT_DEFAULT    3
 #define BMW_UPLOAD_CAPACITY   2048
@@ -155,6 +159,7 @@ static void bmw_parse_fields(SubGhzBlockGeneric* instance) {
 
     instance->serial = (uint32_t)(hi >> 16);
     instance->btn = bmw_wire_xx(btn_byte);
+<<<<<<< HEAD
     instance->cnt = bmw_wire_cnt(lo) & BMW_CNT_MASK;
     /* [ARF_PORT] Upstream also caches three values in SubGhzBlockGeneric fields
      * that ARF's generic block does not have:
@@ -164,6 +169,12 @@ static void bmw_parse_fields(SubGhzBlockGeneric* instance) {
      *   .data_3           = lo & BMW_HOP_MASK -> always equal to
      *                                     data_2 & BMW_HOP_MASK.
      * All three are therefore dropped; the hop is read straight from data_2. */
+=======
+    instance->validation_field = (uint32_t)(hi & 0xFFULL);
+    instance->cnt = bmw_wire_cnt(lo) & BMW_CNT_MASK;
+    instance->data_3 = lo & BMW_HOP_MASK;
+    instance->te = BMW_TE_US;
+>>>>>>> e4610aae94e4a373a5f0845c30386983eb1f2c65
 }
 
 static bool bmw_fields_valid(const SubGhzBlockGeneric* instance) {
@@ -183,6 +194,7 @@ static void bmw_rebuild_payload(SubGhzBlockGeneric* instance) {
     const uint8_t btn_byte = bmw_btn_byte_from_wire_xx(instance->btn);
     const uint32_t wire_cnt = instance->cnt & BMW_CNT_MASK;
     const uint32_t wire_serial = instance->serial;
+<<<<<<< HEAD
     /* [ARF_PORT] Capture the hop before data_2 is overwritten below; upstream
      * read it from the dropped SubGhzBlockGeneric.data_3 cache. */
     const uint64_t hop = instance->data_2 & BMW_HOP_MASK;
@@ -209,6 +221,33 @@ static uint8_t bmw_get_btn_code(void) {
         return 0x03U; /* Trunk */
     default:
         return subghz_custom_btn_get_original();
+=======
+
+    instance->data = ((uint64_t)BMW_SYNC << 48) | ((uint64_t)wire_serial << 16) |
+                     ((uint64_t)btn_byte << 8) | (uint64_t)BMW_FIXED_VALUE;
+    instance->data_2 = ((uint64_t)(wire_cnt >> 1) << 48) | ((uint64_t)(wire_cnt & 1U) << 47) |
+                       (instance->data_3 & BMW_HOP_MASK);
+    instance->data_count_bit = BMW_PAYLOAD_BITS;
+    instance->validation_field = BMW_FIXED_VALUE;
+    instance->te = BMW_TE_US;
+}
+
+static uint8_t bmw_custom_id_from_code(uint8_t code) {
+    switch(code) {
+    case BMW_BTN_LOCK: return SUBGHZ_CUSTOM_BTN_UP;
+    case BMW_BTN_UNLOCK: return SUBGHZ_CUSTOM_BTN_DOWN;
+    case BMW_BTN_TRUNK: return SUBGHZ_CUSTOM_BTN_LEFT;
+    default: return SUBGHZ_CUSTOM_BTN_OK;
+    }
+}
+
+static uint8_t bmw_get_btn_code(uint8_t original_code) {
+    switch(subghz_custom_btn_get()) {
+    case SUBGHZ_CUSTOM_BTN_UP: return BMW_BTN_LOCK;
+    case SUBGHZ_CUSTOM_BTN_DOWN: return BMW_BTN_UNLOCK;
+    case SUBGHZ_CUSTOM_BTN_LEFT: return BMW_BTN_TRUNK;
+    default: return original_code;
+>>>>>>> e4610aae94e4a373a5f0845c30386983eb1f2c65
     }
 }
 
@@ -243,11 +282,19 @@ static bool bmw_get_upload(SubGhzProtocolEncoderBMW* instance) {
         bmw_rebuild_payload(&instance->generic);
     }
     uint8_t btn = instance->generic.btn;
+<<<<<<< HEAD
     if((subghz_custom_btn_get_original() == 0)) {
         subghz_custom_btn_set_original(btn);
         subghz_custom_btn_set_max(BMW_BTN_MAX);
     }
     btn = bmw_get_btn_code();
+=======
+    if(subghz_custom_btn_get_original() == 0) {
+        subghz_custom_btn_set_original(bmw_custom_id_from_code(btn));
+    }
+    subghz_custom_btn_set_max(BMW_BTN_MAX);
+    btn = bmw_get_btn_code(btn);
+>>>>>>> e4610aae94e4a373a5f0845c30386983eb1f2c65
     subghz_block_generic_global_button_override_get(&btn);
     if(btn != instance->generic.btn) {
         instance->generic.btn = btn;
@@ -299,10 +346,17 @@ SubGhzProtocolStatus
     }
     bmw_normalize_stored_payload(&instance->generic);
     bmw_parse_fields(&instance->generic);
+<<<<<<< HEAD
     if((subghz_custom_btn_get_original() == 0)) {
         subghz_custom_btn_set_original(instance->generic.btn);
         subghz_custom_btn_set_max(BMW_BTN_MAX);
     }
+=======
+    if(subghz_custom_btn_get_original() == 0) {
+        subghz_custom_btn_set_original(bmw_custom_id_from_code(instance->generic.btn));
+    }
+    subghz_custom_btn_set_max(BMW_BTN_MAX);
+>>>>>>> e4610aae94e4a373a5f0845c30386983eb1f2c65
     flipper_format_read_uint32(flipper_format, "Repeat", (uint32_t*)&instance->encoder.repeat, 1);
     if(!bmw_get_upload(instance)) return SubGhzProtocolStatusErrorEncoderGetUpload;
     instance->encoder.is_running = true;
@@ -371,10 +425,17 @@ static void bmw_try_callback(SubGhzProtocolDecoderBMW* instance) {
         return;
     }
     bmw_parse_fields(&instance->generic);
+<<<<<<< HEAD
     if((subghz_custom_btn_get_original() == 0)) {
         subghz_custom_btn_set_original(instance->generic.btn);
         subghz_custom_btn_set_max(BMW_BTN_MAX);
     }
+=======
+    if(subghz_custom_btn_get_original() == 0) {
+        subghz_custom_btn_set_original(bmw_custom_id_from_code(instance->generic.btn));
+    }
+    subghz_custom_btn_set_max(BMW_BTN_MAX);
+>>>>>>> e4610aae94e4a373a5f0845c30386983eb1f2c65
     if(instance->base.callback) {
         instance->base.callback(&instance->base, instance->base.context);
     }
@@ -606,8 +667,13 @@ void subghz_protocol_decoder_bmw_get_string(void* context, FuriString* output) {
     subghz_block_generic_global.cnt_length_bit = BMW_CNT_BITS;
     subghz_block_generic_global.current_btn = instance->generic.btn;
     subghz_block_generic_global.current_cnt = instance->generic.cnt;
+<<<<<<< HEAD
     if((subghz_custom_btn_get_original() == 0)) {
         subghz_custom_btn_set_original(instance->generic.btn);
+=======
+    if(subghz_custom_btn_get_original() == 0) {
+        subghz_custom_btn_set_original(bmw_custom_id_from_code(instance->generic.btn));
+>>>>>>> e4610aae94e4a373a5f0845c30386983eb1f2c65
     }
     subghz_custom_btn_set_max(BMW_BTN_MAX);
 
@@ -621,5 +687,9 @@ void subghz_protocol_decoder_bmw_get_string(void* context, FuriString* output) {
         (unsigned long)instance->generic.serial,
         bmw_btn_name(instance->generic.btn),
         (unsigned int)instance->generic.cnt,
+<<<<<<< HEAD
         (unsigned long long)(instance->generic.data_2 & BMW_HOP_MASK));
+=======
+        (unsigned long long)instance->generic.data_3);
+>>>>>>> e4610aae94e4a373a5f0845c30386983eb1f2c65
 }
